@@ -13,6 +13,8 @@
 #include <Arduino.h>
 #include <WiFiUdp.h>
 
+#include <PubSubClient.h>
+
 #include <ArduinoOTA.h>
 
 #define print Serial.printf
@@ -34,6 +36,18 @@ static volatile uint32_t frame_counter = 0;
 static int scrolling = 0;
 static char scroll_buf[1501];
 static int scroll_pos = 0;
+
+static WiFiClient wifiClient;
+static PubSubClient mclient(wifiClient);
+
+static bool enabled = false;
+
+static void mcallback(char *topic, byte *payload, unsigned int length)
+{
+    enabled = payload[0] == '1';
+    if (!enabled)
+      draw_clear();
+}
 
 static int do_pix(int argc, char *argv[])
 {
@@ -230,6 +244,9 @@ void setup(void)
     ArduinoOTA.onEnd([](){draw_clear();});
     ArduinoOTA.begin();
 
+    mclient.setServer("mqtt.vm.nurd.space", 1883);
+    mclient.setCallback(mcallback);
+
     led_enable();
 }
 
@@ -240,8 +257,20 @@ void loop(void)
 
     unsigned long ms = millis();
 
+    mclient.loop();
+    if (!mclient.connected()) {
+        Serial.println(F("Attempting MQTT connection... "));
+
+        if (mclient.connect("johansson")) {
+            mclient.subscribe("space/statedigit");
+            Serial.println(F("Connected to MQTT server"));
+        }
+    }
+
     // handle currently scrolling text with priority
-    if (scrolling > 0) {
+    if (enabled == false) {
+    }
+    else if (scrolling > 0) {
         int scroll_tick = millis() / 20;
         if (scroll_tick != scroll_tick_last) {
             scroll_tick_last = scroll_tick;
