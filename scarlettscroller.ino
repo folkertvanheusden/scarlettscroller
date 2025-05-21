@@ -319,4 +319,7 @@ void loop(void)
     // network update
     MDNS.update();
     ArduinoOTA.handle();
+
+    if (WiFi.status() != WL_CONNECTED)
+      ESP.restart();
 }
