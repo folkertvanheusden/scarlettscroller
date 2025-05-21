@@ -261,9 +261,14 @@ void loop(void)
     if (!mclient.connected()) {
         Serial.println(F("Attempting MQTT connection... "));
 
+        static int fail_count = 0;
         if (mclient.connect("johansson")) {
             mclient.subscribe("space/statedigit");
             Serial.println(F("Connected to MQTT server"));
+            fail_count = 0;
+        }
+        else if (++fail_count > 5) {
+          ESP.restart();
         }
     }
 
